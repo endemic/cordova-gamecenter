@@ -8,24 +8,31 @@
 #import <Cordova/CDV.h>
 #import <GameKit/GameKit.h>
 
-@interface GameCenterPlugin : CDVPlugin
+@interface GameCenterPlugin : CDVPlugin <GKTurnBasedEventHandlerDelegate, GKTurnBasedMatchmakerViewControllerDelegate>
 {
     // Store saved Game Center achievement progress
     NSMutableDictionary *achievementsDictionary;
+    GKTurnBasedMatch *currentTurnBasedMatch;
+    NSArray *currentMatches;
 }
 
-@property (nonatomic, retain) NSMutableDictionary *achievementsDictionary;
+@property (nonatomic, assign) NSMutableDictionary *achievementsDictionary;
+@property (nonatomic, assign) GKTurnBasedMatch *currentTurnBasedMatch;
+@property (nonatomic, assign) NSArray *currentMatches;
 
 // Game Center methods
-- (BOOL)isGameCenterAPIAvailable;
 - (void)authenticateLocalPlayer;
 
 // Leaderboards
-- (void)reportScore:(int64_t)score forCategory:(NSString *)category;
+- (void)reportScore:(CDVInvokedUrlCommand *)command;
+- (void)retrieveScores:(CDVInvokedUrlCommand *)command;
 
 // Achievements
-- (GKAchievement *)getAchievementForIdentifier:(NSString *)identifier;
-- (void)reportAchievementIdentifier:(NSString *)identifier percentComplete:(float)percent;
-- (void)reportAchievementIdentifier:(NSString *)identifier incrementPercentComplete:(float)percent;
+- (GKAchievement *)getAchievementForIdentifier:(NSString *)identifier;  // helper method
+- (void)reportAchievement:(CDVInvokedUrlCommand *)command;
+- (void)retrieveAchievement:(CDVInvokedUrlCommand *)command;
+
+// Matchmaking
+- (void)requestMatch:(CDVInvokedUrlCommand *)command;
 
 @end

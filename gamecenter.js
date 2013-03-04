@@ -11,20 +11,10 @@ window.GameCenter = {};
 
 /**
  * @description Presents a login modal
+ * success callback is passed an object which looks like: { authenticated: true, playerID: XXXXX, alias: "Public display name" }
  */
 window.GameCenter.authenticatePlayer = function (success, error) {
 	cordova.exec(success, error, "GameCenterPlugin", "authenticateLocalPlayer", []);	// success callback, error callback, class, method, args
-};
-
-/**
- * @description Callback for the async login process; overwrite with your own logic
- */
-window.GameCenter.playerWasAuthenticated = function (player) {
-    console.log("Player successfully authenticated.");
-    console.log(player);
-    
-    // "player" var is an object which looks like this:
-    // { authenticated: true, playerID: XXXXX, alias: "Public display name" }
 };
 
 /**
@@ -36,20 +26,29 @@ window.GameCenter.reportScore = function (score, category, success, error) {
 
 /**
  * @description Retrieve all high scores in a particular category
+ * @param String category
+ * @param Function success Success callback, takes a "score" object as a parameter which contains "score" and "category" properties
+ * @param Function error Error callback, takes a string as a parameter which contains an error message
  */
 window.GameCenter.retrieveScores = function (category, success, error) {
-    cordova.exec(success, error, "GameCenterPlugin", "retrieveScoresForCategory", [category]);	// success callback, error callback, class, method, args
+    cordova.exec(success, error, "GameCenterPlugin", "retrieveScores", [category]);	// success callback, error callback, class, method, args
 };
 
-/*
-METHODS
-=======
+/**
+ * @description Request a turn based match
+ */
+window.GameCenter.requestMatch = function (success, error) {
+    cordova.exec(success, error, "GameCenterPlugin", "requestMatch", []);	// success callback, error callback, class, method, args
+};
 
-authenticatePlayer()
+/**
+ * @description Load current matches for the logged in player
+ * @param Function success Success callback, takes a "matches" array as a parameter which contains objects representing current matches
+ * @param Function error Error callback, takes a string as a parameter which contains an error message
+ */
+window.GameCenter.loadMatches = function (success, error) {
+	cordova.exec(success, error, "GameCenterPlugin", "loadMatches", []);	// success callback, error callback, class, method, args
+};
 
-reportScore(score, category)
-getScores(category)
-
-reportAchievement(id, percentComplete)
-getAchievements()
-*/
+// Load matches
+// Advance turn
