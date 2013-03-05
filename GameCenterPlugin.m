@@ -105,6 +105,66 @@
     }];
 }
 
+/* Show native leaderboard UI */
+- (void)showLeaderboard:(CDVInvokedUrlCommand *)command
+{
+    GKLeaderboardViewController *leaderboardController = [[GKLeaderboardViewController alloc] init];
+    
+    if (leaderboardController != nil)
+    {
+        NSString *category = nil,
+                 *timeScope = nil;
+        
+        if (command.arguments.count > 0)
+        {
+            category = [command.arguments objectAtIndex:0];
+        }
+        
+        if (command.arguments.count > 1)
+        {
+            timeScope = [command.arguments objectAtIndex:1];
+        }
+        
+        // Set category
+        if (category)
+        {
+            leaderboardController.category = category;
+        }
+        
+        // Set time scope - default is all time. ALL TIME.
+        if ([timeScope isEqualToString:@"day"])
+        {
+            leaderboardController.timeScope = GKLeaderboardTimeScopeToday;
+        }
+        else if ([timeScope isEqualToString:@"week"])
+        {
+            leaderboardController.timeScope = GKLeaderboardTimeScopeWeek;
+        }
+        else
+        {
+            leaderboardController.timeScope = GKLeaderboardTimeScopeAllTime;
+        }
+        
+        leaderboardController.leaderboardDelegate = self;
+        [self.viewController presentViewController:leaderboardController animated: YES completion:nil];
+        
+        // Send the success callback
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+    }
+    else
+    {
+        // Send the error callback
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR] callbackId:command.callbackId];
+    }
+}
+
+/* Delegate callback to dismiss the native leaderboard UI */
+- (void)leaderboardViewControllerDidFinish:(GKLeaderboardViewController *)viewController
+{
+    [self.viewController dismissViewControllerAnimated:YES completion:nil];
+}
+
+/* Retrieve leaderboard scores programmatically in order to create a custom UI */
 - (void)retrieveScores:(CDVInvokedUrlCommand *)command
 {
     GKLeaderboard *leaderboardRequest = [[GKLeaderboard alloc] init];
@@ -135,12 +195,10 @@
             range = [[command.arguments objectAtIndex:3] intValue];
         }
         
-        // Your "Default" leaderboard will be used unless you explicitly supply another one here
+        // Your "default" leaderboard will be used unless you explicitly supply another one here
         if (category)
         {
-            // Set category
             leaderboardRequest.category = category;
-            NSLog(@"Category: %@", leaderboardRequest.category);
         }
         
         // Set global/friends scope - default is global
@@ -195,6 +253,25 @@
 
 #pragma mark -
 #pragma mark Achievements
+
+- (void)loadAchievements
+{
+    // Load player achievements
+    [GKAchievement loadAchievementsWithCompletionHandler:^(NSArray *achievements, NSError *error) {
+        if (error != nil)
+        {
+            // handle errors
+        }
+        if (achievements != nil)
+        {
+            // process array of achievements
+            for (GKAchievement* achievement in achievements)
+            {
+                [achievementsDictionary setObject:achievement forKey:achievement.identifier];
+            }
+        }
+    }];
+}
 
 /**
  * Get an achievement object in the locally stored dictionary
@@ -252,6 +329,31 @@
     }
 }
 
+/* Show the native achievement UI */
+- (void)showAchievements:(CDVInvokedUrlCommand *)command
+{
+    GKAchievementViewController *achievementController = [[GKAchievementViewController alloc] init];
+    if (achievementController != nil)
+    {
+        achievementController.achievementDelegate = self;
+        [self.viewController presentModalViewController:achievementController animated:YES];
+        
+        // Send the success callback
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+    }
+    else
+    {
+        // Send the error callback
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR] callbackId:command.callbackId];
+    }
+}
+
+/* Delegate callback to dismiss achievement view controller */
+- (void)achievementViewControllerDidFinish:(GKAchievementViewController *)viewController
+{
+    [self.viewController dismissViewControllerAnimated:YES completion:nil];
+}
+
 #pragma mark -
 #pragma mark Matchmaking
 
@@ -269,7 +371,7 @@
     GKTurnBasedMatchmakerViewController *mmvc = [[GKTurnBasedMatchmakerViewController alloc] initWithMatchRequest:request];
     mmvc.turnBasedMatchmakerDelegate = self;
     
-    // Will this work?
+    // Show the native UI
     [self.viewController presentViewController:mmvc animated:YES completion:nil];
     
     // Return plugin result
@@ -293,7 +395,7 @@
 /*  */
 - (void)turnBasedMatchmakerViewController:(GKTurnBasedMatchmakerViewController *)viewController playerQuitForMatch:(GKTurnBasedMatch *)match
 {
-    
+    // Update the particular match to say that the player quit
 }
 
 /**
@@ -393,7 +495,7 @@
 /**
  * Load data from the selected match
  */
-- (void)loadMatchData
+- (void)loadMatchData:(CDVInvokedUrlCommand *)command
 {
     [self.currentTurnBasedMatch loadMatchDataWithCompletionHandler:^(NSData *matchData, NSError *error) {
         // Decode the match data here
@@ -427,7 +529,7 @@
 /**
  * Advance the turn
  */
-- (void)advanceTurn
+- (void)advanceTurn:(CDVInvokedUrlCommand *)command
 {
     NSString *json = @"{results:false}";
     NSData *data = [NSData dataFromBase64String:json];
@@ -458,7 +560,7 @@
     GKTurnBasedMatchmakerViewController *mmvc = [[GKTurnBasedMatchmakerViewController alloc] initWithMatchRequest:request];
     mmvc.turnBasedMatchmakerDelegate = self;
     
-    // Will this work?
+    // Show native interface
     [self.viewController presentViewController:mmvc animated:YES completion:nil];
 }
 

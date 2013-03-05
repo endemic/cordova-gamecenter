@@ -25,6 +25,17 @@ window.GameCenter.reportScore = function (score, category, success, error) {
 };
 
 /**
+ * @description Show a native UI leaderboard for a particular category
+ * @param String category The unique ID you set up in iTunes Connect
+ * @param String time Time interval for displayed scores; accepted values: "day", "week", "all"
+ * @param Function success Success callback
+ * @param Function error Error callback, takes a string as a parameter which contains an error message
+ */
+window.GameCenter.showLeaderboard = function (category, time, success, error) {
+	cordova.exec(success, error, "GameCenterPlugin", "showLeaderboard", [category, time]);	// success callback, error callback, class, method, args
+};
+
+/**
  * @description Retrieve all high scores in a particular category
  * @param String category
  * @param Function success Success callback, takes a "score" object as a parameter which contains "score" and "category" properties
@@ -32,6 +43,15 @@ window.GameCenter.reportScore = function (score, category, success, error) {
  */
 window.GameCenter.retrieveScores = function (category, success, error) {
     cordova.exec(success, error, "GameCenterPlugin", "retrieveScores", [category]);	// success callback, error callback, class, method, args
+};
+
+/**
+ * @description Show native achievement list
+ * @param Function success Success callback
+ * @param Function error Error callback, takes a string as a parameter which contains an error message
+ */
+window.GameCenter.showAchievements = function (success, error) {
+    cordova.exec(success, error, "GameCenterPlugin", "showAchievements", []);	// success callback, error callback, class, method, args
 };
 
 /**

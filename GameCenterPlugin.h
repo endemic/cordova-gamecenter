@@ -8,7 +8,7 @@
 #import <Cordova/CDV.h>
 #import <GameKit/GameKit.h>
 
-@interface GameCenterPlugin : CDVPlugin <GKTurnBasedEventHandlerDelegate, GKTurnBasedMatchmakerViewControllerDelegate>
+@interface GameCenterPlugin : CDVPlugin <GKLeaderboardViewControllerDelegate, GKAchievementViewControllerDelegate, GKTurnBasedEventHandlerDelegate, GKTurnBasedMatchmakerViewControllerDelegate>
 {
     // Store saved Game Center achievement progress
     NSMutableDictionary *achievementsDictionary;
@@ -25,14 +25,17 @@
 
 // Leaderboards
 - (void)reportScore:(CDVInvokedUrlCommand *)command;
+- (void)showLeaderboard:(CDVInvokedUrlCommand *)command;
 - (void)retrieveScores:(CDVInvokedUrlCommand *)command;
 
 // Achievements
 - (GKAchievement *)getAchievementForIdentifier:(NSString *)identifier;  // helper method
 - (void)reportAchievement:(CDVInvokedUrlCommand *)command;
 - (void)retrieveAchievement:(CDVInvokedUrlCommand *)command;
+- (void)showAchievements:(CDVInvokedUrlCommand *)command;
 
 // Matchmaking
 - (void)requestMatch:(CDVInvokedUrlCommand *)command;
+- (void)advanceTurn:(CDVInvokedUrlCommand *)command;
 
 @end
