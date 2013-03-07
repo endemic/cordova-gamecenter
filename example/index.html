@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+        <title>Cordova Game Center Plugin</title>
+    </head>
+    <body>
+        
+        <script type="text/javascript" src="cordova-2.2.0.js"></script>
+        <script type="text/javascript" src="js/gamecenter.js"></script>
+        <script type="text/javascript" src="js/jquery.js"></script>
+        <script type="text/javascript" src="js/index.js"></script>
+
+        <p><button id="auth">Log in to Game Center</button></p>
+        
+        <ul id="player">
+            <li class="authenticated"></li>
+            <li class="playerId"></li>
+            <li class="alias"></li>
+        </ul>
+
+        <p><input id="score-value" type="text"><button id="report-score">Report a high score!</button></p>
+
+        <p><button id="show-leaderboard">Show a leaderboard</button></p>
+
+        <p><button id="get-scores">Retrieve High Scores!</button></p>
+        <div id="score-display"></div>
+
+        <p><button id="show-achievements">Show achievements</button></p>
+
+        <p><button id="request-match">Request a match</button></p>
+    </body>
+</html>
