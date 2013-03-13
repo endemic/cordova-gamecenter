@@ -6,12 +6,15 @@
 
 // Test account: nd_test@test.com
 // Password: G4m3c3nt3r
+// Test account: ja_test@test.com
+// Password: G4m3c3nt3r
 
 window.GameCenter = {};
 
 /**
  * @description Presents a login modal
- * success callback is passed an object which looks like: { authenticated: true, playerID: XXXXX, alias: "Public display name" }
+ * @param Function success Success callback - passed an object which looks like: { authenticated: true, playerID: XXXXX, alias: "Public display name" }
+ * @param Function error Error callback, takes a string as a parameter which contains an error message
  */
 window.GameCenter.authenticatePlayer = function (success, error) {
 	cordova.exec(success, error, "GameCenterPlugin", "authenticateLocalPlayer", []);	// success callback, error callback, class, method, args
@@ -19,6 +22,10 @@ window.GameCenter.authenticatePlayer = function (success, error) {
 
 /**
  * @description Send a leaderboard high score for a particular category
+ * @param String score Integer value
+ * @param String category The unique ID you set up in iTunes Connect
+ * @param Function success Success callback
+ * @param Function error Error callback, takes a string as a parameter which contains an error message
  */
 window.GameCenter.reportScore = function (score, category, success, error) {
 	cordova.exec(success, error, "GameCenterPlugin", "reportScore", [score, category]);	// success callback, error callback, class, method, args
@@ -56,9 +63,20 @@ window.GameCenter.showAchievements = function (success, error) {
 
 /**
  * @description Request a turn based match
+ * @param Function success Success callback
+ * @param Function error Error callback, takes a string as a parameter which contains an error message
  */
-window.GameCenter.requestMatch = function (success, error) {
+window.GameCenter.requestMatch = function (minPlayers, maxPlayers, success, error) {
     cordova.exec(success, error, "GameCenterPlugin", "requestMatch", []);	// success callback, error callback, class, method, args
+};
+
+/**
+ * @description Custom callback, executed when a user's match request goes through successfully
+ * Probably should show player the gameplay UI/scene
+ */
+window.GameCenter.foundMatch = function (matchId) {
+	/* Your own code here */
+	/*console.log("Found match " + matchId);*/
 };
 
 /**
@@ -70,5 +88,11 @@ window.GameCenter.loadMatches = function (success, error) {
 	cordova.exec(success, error, "GameCenterPlugin", "loadMatches", []);	// success callback, error callback, class, method, args
 };
 
-// Load matches
-// Advance turn
+/**
+ * @description Play a move in a specified match
+ * @param Function success Success callback
+ * @param Function error Error callback, takes a string as a parameter which contains an error message
+ */
+window.GameCenter.advanceTurn = function (data, success, error) {
+	cordova.exec(success, error, "GameCenterPlugin", "advanceTurn", [data]);	// success callback, error callback, class, method, args
+};

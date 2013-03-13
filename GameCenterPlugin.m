@@ -76,7 +76,7 @@
 #pragma mark -
 #pragma mark Leaderboards
 
-//- (void)reportScore:(int64_t)score forCategory:(NSString *)category
+/* Send a high score */
 - (void)reportScore:(CDVInvokedUrlCommand *)command
 {
     int64_t score = (int64_t)[command.arguments objectAtIndex:0];
@@ -254,6 +254,7 @@
 #pragma mark -
 #pragma mark Achievements
 
+/* Temporarily store achievements in a local data structure */
 - (void)loadAchievements
 {
     // Load player achievements
@@ -362,10 +363,23 @@
  */
 - (void)requestMatch:(CDVInvokedUrlCommand *)command
 {
+    int minPlayers = 2,
+        maxPlayers = 2;
+    
+    if (command.arguments.count > 0)
+    {
+        minPlayers = [[command.arguments objectAtIndex:0] intValue];
+    }
+    
+    if (command.arguments.count > 1)
+    {
+        maxPlayers = [[command.arguments objectAtIndex:1] intValue];
+    }
+    
     // Create the match request, with all the appropriate options filled in
     GKMatchRequest *request = [[GKMatchRequest alloc] init];
-    request.minPlayers = 2;
-    request.maxPlayers = 2;
+    request.minPlayers = minPlayers;
+    request.maxPlayers = maxPlayers;
     request.playerGroup = 0;  // Can be whatever, user-specified
     
     GKTurnBasedMatchmakerViewController *mmvc = [[GKTurnBasedMatchmakerViewController alloc] initWithMatchRequest:request];
@@ -392,14 +406,14 @@
     // Execute a custom callback?
 }
 
-/*  */
+/* Quit */
 - (void)turnBasedMatchmakerViewController:(GKTurnBasedMatchmakerViewController *)viewController playerQuitForMatch:(GKTurnBasedMatch *)match
 {
     // Update the particular match to say that the player quit
 }
 
 /**
- * Called after user successfully finds a match
+ * Called after user successfully finds a match, or selects a game in progress
  */
 - (void)turnBasedMatchmakerViewController:(GKTurnBasedMatchmakerViewController *)viewController didFindMatch:(GKTurnBasedMatch *)match
 {
@@ -409,10 +423,11 @@
     self.currentTurnBasedMatch = match;
     
     // Execute a custom callback
+    [self writeJavascript:[NSString stringWithFormat:@"window.GameKit.foundMatch(%@)", match.matchID]];
 }
 
 /**
- * Retrieve the list of matches the local player is participating in
+ * Programmatically retrieve the list of matches the local player is participating in
  */
 - (void)loadMatches:(CDVInvokedUrlCommand *)command
 {
@@ -421,7 +436,9 @@
         
         if (matches)
         {
-            // Store list of current matches, can't send Obj-C objects back to the Javascript layer, so will need to iterate/find the native object based on matchID
+            // Store list of current matches;
+            // can't send Obj-C objects back to the Javascript layer,
+            // so will need to iterate/find the native object based on matchID
             self.currentMatches = matches;
             
             NSMutableArray *toJson = [NSMutableArray array];
@@ -458,10 +475,8 @@
             
             result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:toJson];
             
-            // Get match info here!
             /*
-             match object
-             {
+             match object ={
                 matchID: 'xxxx',
                 status: 
                 message:
@@ -469,14 +484,12 @@
                 currentParticipant:
              }
              
-             participant object
-             {
+             participant object ={
                 playerID
                 status
                 timeoutDate
                 matchOutcome
              }
-             
              */
         }
         else if (error != nil)
@@ -509,7 +522,7 @@
  * Update match data -- called at the end of a turn
  * Match data is max 64k
  */
-- (void)updateMatchData
+- (void)updateMatchData:(CDVInvokedUrlCommand *)command
 {
     NSString *json = @"{results:false}";
     NSData *data = [NSData dataFromBase64String:json];
@@ -531,12 +544,28 @@
  */
 - (void)advanceTurn:(CDVInvokedUrlCommand *)command
 {
-    NSString *json = @"{results:false}";
-    NSData *data = [NSData dataFromBase64String:json];
-    NSArray *sortedPlayerOrder = [NSArray array];   // TODO: re-arrange the players in the "currentTurnBasedMatch" obj
+    NSData *data = [NSData dataFromBase64String:[command.arguments objectAtIndex:0]];
+    NSMutableArray *sortedPlayerOrder = [NSMutableArray arrayWithArray:self.currentTurnBasedMatch.participants];
+    
+    // Remove the first player and add to the end of the array
+    GKTurnBasedParticipant *p = [sortedPlayerOrder objectAtIndex:0];
+    [sortedPlayerOrder removeObjectAtIndex:0];
+    [sortedPlayerOrder addObject:p];
     
     [self.currentTurnBasedMatch endTurnWithNextParticipants:sortedPlayerOrder turnTimeout:GKTurnTimeoutDefault matchData:data completionHandler:^(NSError *error) {
+        CDVPluginResult *result = nil;
         
+        if (error != nil)
+        {
+            result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
+        }
+        else
+        {
+            result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+        }
+        
+        // Send results
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
     }];
 }
 
@@ -579,7 +608,8 @@
 - (void)handleMatchEnded:(GKTurnBasedMatch *)match
 {
     /*
-     When your delegate receives this message, it should display the match’s final results to the player and allow the player the option of saving or removing the match data from Game Center.
+     When your delegate receives this message, it should display the match’s final results to the player and allow the 
+     player the option of saving or removing the match data from Game Center.
      Also should probably allow a rematch.
      */
 }

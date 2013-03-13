@@ -2,7 +2,8 @@
 /*global window, cordova, $, document */
 
 var onDeviceReady = function () {
-	var authenticated = false;
+	var authenticated = false,
+		data = 0;
 
 	/* Authenticate player */
 	$('#auth').on('click', function () {
@@ -104,6 +105,26 @@ var onDeviceReady = function () {
 			console.log("Couldn't request match: " + message);
 		});
 	});
+
+    /* Take a turn */
+    $('#advance-turn').on('click', function () {
+        if (authenticated === false) {
+			alert('Authenticate first!');
+			return;
+		}
+
+		// Arbitrary data that gets sent to Game Center as a representation
+		// of the player's actions
+		data += 1;
+
+		window.GameCenter.advanceTurn(data, function () {
+			// Success!
+			console.log("Successfully advanced the match!");
+		}, function (message) {
+			// Error...
+			console.log("Couldn't advance match: " + message);
+		});
+    });
 };
 
 document.addEventListener('deviceready', onDeviceReady, false);

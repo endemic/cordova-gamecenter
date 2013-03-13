@@ -36,6 +36,9 @@
 
 // Matchmaking
 - (void)requestMatch:(CDVInvokedUrlCommand *)command;
+- (void)loadMatches:(CDVInvokedUrlCommand *)command;
+- (void)loadMatchData:(CDVInvokedUrlCommand *)command;
+- (void)updateMatchData:(CDVInvokedUrlCommand *)command;
 - (void)advanceTurn:(CDVInvokedUrlCommand *)command;
 
 @end
