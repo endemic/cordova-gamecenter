@@ -16,9 +16,9 @@
     NSArray *currentMatches;
 }
 
-@property (nonatomic, assign) NSMutableDictionary *achievementsDictionary;
-@property (nonatomic, assign) GKTurnBasedMatch *currentTurnBasedMatch;
-@property (nonatomic, assign) NSArray *currentMatches;
+@property (nonatomic, retain) NSMutableDictionary *achievementsDictionary;
+@property (nonatomic, retain) GKTurnBasedMatch *currentTurnBasedMatch;
+@property (nonatomic, retain) NSArray *currentMatches;
 
 // Game Center methods
 - (void)authenticateLocalPlayer;
@@ -37,8 +37,8 @@
 // Matchmaking
 - (void)requestMatch:(CDVInvokedUrlCommand *)command;
 - (void)loadMatches:(CDVInvokedUrlCommand *)command;
-- (void)loadMatchData:(CDVInvokedUrlCommand *)command;
-- (void)updateMatchData:(CDVInvokedUrlCommand *)command;
+- (void)loadMatchWithId:(CDVInvokedUrlCommand *)command;
 - (void)advanceTurn:(CDVInvokedUrlCommand *)command;
+- (void)endMatch:(CDVInvokedUrlCommand *)command;
 
 @end

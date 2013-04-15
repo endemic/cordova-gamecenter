@@ -3,7 +3,9 @@
 
 var onDeviceReady = function () {
 	var authenticated = false,
-		data = 0;
+		data = {
+			score: 0
+		};
 
 	/* Authenticate player */
 	$('#auth').on('click', function () {
@@ -106,6 +108,56 @@ var onDeviceReady = function () {
 		});
 	});
 
+	/* Show all current matches */
+	$('#show-matches').on('click', function () {
+		if (authenticated === false) {
+			alert('Authenticate first!');
+			return;
+		}
+
+		window.GameCenter.loadMatches(function (matches) {
+			// Success!
+			console.log(matches);
+
+			/* match status codes:
+				GKTurnBasedMatchStatusUnknown = 0,
+				GKTurnBasedMatchStatusOpen = 1,
+				GKTurnBasedMatchStatusEnded = 2,
+				GKTurnBasedMatchStatusMatching = 3
+			 */
+
+			var output = $('#matches');
+
+			output.html('');
+
+			matches.forEach(function (match) {
+				output.append('<div class="match" style="border: 1px solid #ccc;" data-id="' + match.matchId + '">' + match.matchId + '</div>');
+			});
+		}, function (message) {
+			// Error...
+			console.log("Couldn't load matches: " + message);
+		});
+	});
+
+	/* Load a particular match */
+	$('#matches').on('click', '.match', function () {
+		if (authenticated === false) {
+			alert('Authenticate first!');
+			return;
+		}
+
+		var matchId = $(this).data('id');
+
+		window.GameCenter.loadMatchWithId(matchId, function (data) {
+			// Success!
+			console.log("Match data:");
+			console.log(data);
+		}, function (message) {
+			// Error...
+			console.log("Couldn't load matches: " + message);
+		});
+	});
+
     /* Take a turn */
     $('#advance-turn').on('click', function () {
         if (authenticated === false) {
@@ -115,7 +167,7 @@ var onDeviceReady = function () {
 
 		// Arbitrary data that gets sent to Game Center as a representation
 		// of the player's actions
-		data += 1;
+		data.score += 1;
 
 		window.GameCenter.advanceTurn(data, function () {
 			// Success!
@@ -125,6 +177,9 @@ var onDeviceReady = function () {
 			console.log("Couldn't advance match: " + message);
 		});
     });
+
+    // auto login
+    $('#auth').trigger('click');
 };
 
 document.addEventListener('deviceready', onDeviceReady, false);
