@@ -131,7 +131,17 @@ var onDeviceReady = function () {
 			output.html('');
 
 			matches.forEach(function (match) {
-				output.append('<div class="match" style="border: 1px solid #ccc;" data-id="' + match.matchId + '">' + match.matchId + '</div>');
+				// Get participants
+				var participants;
+				if (match.participants[0].alias === undefined) {
+					match.participants[0].alias = "Waiting for player";
+				}
+				if (match.participants[1].alias === undefined) {
+					match.participants[1].alias = "Waiting for player";
+				}
+				participants = match.participants[0].alias + ' vs. ' + match.participants[1].alias;
+
+				output.append('<div class="match" style="border: 1px solid #ccc;" data-id="' + match.matchId + '">' + participants + '</div>');
 			});
 		}, function (message) {
 			// Error...

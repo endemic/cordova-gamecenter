@@ -16,9 +16,9 @@
     NSArray *currentMatches;
 }
 
-@property (nonatomic, retain) NSMutableDictionary *achievementsDictionary;
-@property (nonatomic, retain) GKTurnBasedMatch *currentTurnBasedMatch;
-@property (nonatomic, retain) NSArray *currentMatches;
+@property (nonatomic, readwrite, retain) NSMutableDictionary *achievementsDictionary;
+@property (nonatomic, readwrite, retain) GKTurnBasedMatch *currentTurnBasedMatch;
+@property (nonatomic, readwrite, retain) NSArray *currentMatches;
 
 // Game Center methods
 - (void)authenticateLocalPlayer;

@@ -384,6 +384,7 @@
     
     GKTurnBasedMatchmakerViewController *mmvc = [[GKTurnBasedMatchmakerViewController alloc] initWithMatchRequest:request];
     mmvc.turnBasedMatchmakerDelegate = self;
+    mmvc.showExistingMatches = NO;  // Change this to list matches in the view controller
     
     // Show the native UI
     [self.viewController presentViewController:mmvc animated:YES completion:nil];
@@ -405,7 +406,7 @@
     // Dismiss the native UI
     [self.viewController dismissViewControllerAnimated:YES completion:nil];
     
-    // Execute a custom callback to let Javascript layer know a match was found
+    // Execute a custom callback to let Javascript layer know a match was found; probably should update UI
     [self writeJavascript:[NSString stringWithFormat:@"window.GameKit.foundMatch(%@)", match.matchID]];
 }
 
@@ -424,7 +425,8 @@
             // so will need to iterate/find the native object based on matchID
             self.currentMatches = matches;
             
-            NSMutableArray *toJson = [NSMutableArray array];
+            NSMutableArray *json = [NSMutableArray array];
+            NSMutableArray *playerIds = [NSMutableArray array];
             
             for (GKTurnBasedMatch *match in matches)
             {
@@ -433,55 +435,90 @@
                 // Get participants
                 for (GKTurnBasedParticipant *participant in match.participants)
                 {
-                    NSDictionary *p = [NSDictionary dictionaryWithObjectsAndKeys:participant.playerID, @"playerId",
+                    NSMutableDictionary *p = [NSMutableDictionary dictionaryWithObjectsAndKeys:participant.playerID, @"playerId",
                                        [NSNumber numberWithInt:participant.status], @"status",
                                        participant.timeoutDate, @"timeoutDate", nil];
+                    
                     [participants addObject:p];
+                    
+                    // Add participant to the "alias" lookup array
+                    if (participant.playerID != nil && [playerIds indexOfObject:participant.playerID] == NSNotFound)
+                    {
+                        [playerIds addObject:participant.playerID];
+                    }
                 }
                 
                 // Get current participant
-                NSDictionary *currentParticipant = [NSDictionary dictionaryWithObjectsAndKeys:match.currentParticipant.playerID, @"playerId",
+                NSMutableDictionary *currentParticipant = [NSMutableDictionary dictionaryWithObjectsAndKeys:match.currentParticipant.playerID, @"playerId",
                                    [NSNumber numberWithInt:match.currentParticipant.status], @"status",
                                    match.currentParticipant.timeoutDate, @"timeoutDate", nil];
                 
                 // Create a dictionary w/ relevant data
-                NSDictionary *m = [NSDictionary dictionaryWithObjectsAndKeys:match.matchID, @"matchId",
+                NSMutableDictionary *m = [NSMutableDictionary dictionaryWithObjectsAndKeys:match.matchID, @"matchId",
                                    [NSNumber numberWithInt:match.status], @"status",
                                    match.message, @"message",
                                    participants, @"participants",
                                    currentParticipant, @"currentParticipant", nil];
-                [toJson addObject:m];
+                
+                [json addObject:m];
             }
             
-            result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:toJson];
-            
-            /*
-             match object ={
-                matchID: 'xxxx',
-                status: 
-                message:
-                participants:
-                currentParticipant:
-             }
-             
-             participant object ={
-                playerID
-                status
-                timeoutDate
-                matchOutcome
-             }
-             */
+            // Get player aliases
+            [GKPlayer loadPlayersForIdentifiers:playerIds withCompletionHandler:^(NSArray *players, NSError *error) {
+                CDVPluginResult *result = nil;
+                NSMutableDictionary *playerAliases = [NSMutableDictionary dictionary];
+                
+                if (players)
+                {
+                    // Create a dictionary w/ ID of player as key, alias as value
+                    for (GKPlayer *player in players)
+                    {
+                        [playerAliases setObject:player.alias forKey:player.playerID];
+                    }
+                    
+                    // Loop through the results array and add player aliases to match objects
+                    for (NSMutableDictionary *match in json)
+                    {
+                        // Set the alias for the current participant
+                        NSMutableDictionary *currentParticipant = [match objectForKey:@"currentParticipant"];
+                        NSString *playerId = [currentParticipant objectForKey:@"playerId"];
+                        if (playerId != nil)
+                        {
+                            [currentParticipant setObject:[playerAliases objectForKey:playerId] forKey:@"alias"];
+                        }
+                        
+                        // Set the alias for all participants
+                        NSMutableArray *participants = [match objectForKey:@"participants"];
+                        for (NSMutableDictionary *participant in participants)
+                        {
+                            NSString *playerId = [participant objectForKey:@"playerId"];
+                            if (playerId != nil)
+                            {
+                                [participant setObject:[playerAliases objectForKey:playerId] forKey:@"alias"];
+                            }
+                        }
+                    }
+                    
+                    result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:json];
+                }
+                else if (error != nil)
+                {
+                    result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
+                }
+                
+                [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+            }];
         }
         else if (error != nil)
         {
             result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
+            [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         }
         else
         {
             result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR];
+            [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         }
-        
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
     }];
 }
 
@@ -521,7 +558,7 @@
         CDVPluginResult *result = nil;
         
 //        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:matchData options:NSJSONWritingPrettyPrinted error:nil];
-        
+
         // Decode the match data here
         NSString *json = [[NSString alloc] initWithData:matchData encoding:NSUTF8StringEncoding];
         
@@ -547,6 +584,9 @@
     GKTurnBasedParticipant *p = [sortedPlayerOrder objectAtIndex:0];
     [sortedPlayerOrder removeObjectAtIndex:0];
     [sortedPlayerOrder addObject:p];
+    
+    // TODO: allow JS to pass a message indicating current game state
+    self.currentTurnBasedMatch.message = @"Hello!";
     
     [self.currentTurnBasedMatch endTurnWithNextParticipants:sortedPlayerOrder turnTimeout:GKTurnTimeoutDefault matchData:data completionHandler:^(NSError *error) {
         CDVPluginResult *result = nil;
