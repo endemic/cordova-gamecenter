@@ -525,7 +525,7 @@
 /**
  * Loads match data from a specific match ID
  */
-- (void)loadMatchWithId:(CDVInvokedUrlCommand *)command
+- (void)loadMatch:(CDVInvokedUrlCommand *)command
 {
     NSString *matchId = @"";
     CDVPluginResult *result = nil;
@@ -552,6 +552,7 @@
     {
         result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Couldn't find match."];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        return;
     }
     
     [self.currentTurnBasedMatch loadMatchDataWithCompletionHandler:^(NSData *matchData, NSError *error) {
@@ -606,7 +607,81 @@
 }
 
 /**
- * End the game
+ * When a player wants to resign from a particular match
+ */
+- (void)quitMatch:(CDVInvokedUrlCommand *)command
+{
+    NSString *matchId = @"";
+    CDVPluginResult *result = nil;
+    BOOL foundMatch = NO;
+    
+    if (command.arguments.count > 0)
+    {
+        matchId = [command.arguments objectAtIndex:0];
+    }
+    
+    // Loop through local store of match objects to find the desired one
+    for (GKTurnBasedMatch *match in self.currentMatches)
+    {
+        if ([match.matchID isEqualToString:matchId])
+        {
+            self.currentTurnBasedMatch = match;
+            foundMatch = YES;
+            break;
+        }
+    }
+    
+    // Fail out if the match ID isn't in the list of available matches
+    if (foundMatch == NO)
+    {
+        result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Couldn't find match."];
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        return;
+    }
+    
+    // Determine if you are the current player or not
+    if ([self.currentTurnBasedMatch.currentParticipant.playerID isEqualToString:[GKLocalPlayer localPlayer].playerID]) {
+        NSMutableArray *sortedPlayerOrder = [NSMutableArray arrayWithArray:self.currentTurnBasedMatch.participants];
+        
+        // Remove the first player
+        [sortedPlayerOrder removeObjectAtIndex:0];
+        
+        [self.currentTurnBasedMatch participantQuitInTurnWithOutcome:GKTurnBasedMatchOutcomeQuit nextParticipants:sortedPlayerOrder turnTimeout:604800 matchData:self.currentTurnBasedMatch.matchData completionHandler:^(NSError *error) {
+            CDVPluginResult *result = nil;
+            
+            if (error != nil)
+            {
+                result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
+            }
+            else
+            {
+                result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+            }
+            
+            // Send results
+            [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        }];
+    } else {
+        [self.currentTurnBasedMatch participantQuitOutOfTurnWithOutcome:GKTurnBasedMatchOutcomeQuit withCompletionHandler:^(NSError *error) {
+            CDVPluginResult *result = nil;
+            
+            if (error != nil)
+            {
+                result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
+            }
+            else
+            {
+                result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+            }
+            
+            // Send results
+            [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        }];
+    }
+}
+
+/**
+ * When the game ends "normally"
  */
 - (void)endMatch:(CDVInvokedUrlCommand *)command
 {

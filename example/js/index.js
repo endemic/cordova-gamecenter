@@ -141,7 +141,7 @@ var onDeviceReady = function () {
 				}
 				participants = match.participants[0].alias + ' vs. ' + match.participants[1].alias;
 
-				output.append('<div class="match" style="border: 1px solid #ccc;" data-id="' + match.matchId + '">' + participants + '</div>');
+				output.append('<div><span class="match" style="border: 1px solid #ccc;" data-id="' + match.matchId + '">' + participants + '</span><a data-id="' + match.matchId + '" class="close">X</a></div>');
 			});
 		}, function (message) {
 			// Error...
@@ -158,13 +158,31 @@ var onDeviceReady = function () {
 
 		var matchId = $(this).data('id');
 
-		window.GameCenter.loadMatchWithId(matchId, function (data) {
+		window.GameCenter.loadMatch(matchId, function (data) {
 			// Success!
 			console.log("Match data:");
-			console.log(data);
+			console.log(data.score);
 		}, function (message) {
 			// Error...
 			console.log("Couldn't load matches: " + message);
+		});
+	});
+
+	/* Delete a particular match */
+	$('#matches').on('click', '.close', function () {
+		if (authenticated === false) {
+			alert('Authenticate first!');
+			return;
+		}
+
+		var matchId = $(this).data('id');
+
+		window.GameCenter.quitMatch(matchId, function (data) {
+			// Success!
+			console.log("Ended match.");
+		}, function (message) {
+			// Error...
+			console.log("Couldn't quit the match.");
 		});
 	});
 

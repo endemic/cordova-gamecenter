@@ -11,6 +11,14 @@
 
 window.GameCenter = {};
 
+/* Some GameCenter enums */
+window.GameCenter.GKTurnBasedMatchStatus = {
+	'0': 'GKTurnBasedMatchStatusUnknown',
+	'1': 'GKTurnBasedMatchStatusOpen',
+	'2': 'GKTurnBasedMatchStatusEnded',
+	'3': 'GKTurnBasedMatchStatusMatching'
+}
+
 /**
  * @description Presents a login modal
  * @param Function success Success callback - passed an object which looks like: { authenticated: true, playerID: XXXXX, alias: "Public display name" }
@@ -76,7 +84,7 @@ window.GameCenter.requestMatch = function (minPlayers, maxPlayers, success, erro
  */
 window.GameCenter.foundMatch = function (matchId) {
 	console.log("Found match " + matchId);
-	/* Your own code here; transition to gameplay */
+	/* Your own code here; call 'loadMatchWithId' to get game data, then transition to gameplay */
 };
 
 /**
@@ -107,18 +115,30 @@ window.GameCenter.loadMatches = function (success, error) {
 
 /**
  * @description Load the stored data for a match with a specific match ID
+ * @param String GameCenter match ID
  * @param Function success Success callback, takes a "data" object as a parameter which contains match data (played moves, etc.)
  * @param Function error Error callback, takes a string as a parameter which contains an error message
  */
-window.GameCenter.loadMatchWithId = function (matchId, success, error) {
-	cordova.exec(success, error, "GameCenterPlugin", "loadMatchWithId", [matchId]);	// success callback, error callback, class, method, args
+window.GameCenter.loadMatch = function (matchId, success, error) {
+	cordova.exec(success, error, "GameCenterPlugin", "loadMatch", [matchId]);	// success callback, error callback, class, method, args
 };
 
 /**
  * @description Play a move in a specified match
+ * @param String Arbitrary data that indicates the state of the match
  * @param Function success Success callback
  * @param Function error Error callback, takes a string as a parameter which contains an error message
  */
 window.GameCenter.advanceTurn = function (data, success, error) {
 	cordova.exec(success, error, "GameCenterPlugin", "advanceTurn", [data]);	// success callback, error callback, class, method, args
+};
+
+/**
+ * @description Load the stored data for a match with a specific match ID
+ * @param String GameCenter match ID
+ * @param Function success Success callback, takes a "data" object as a parameter which contains match data (played moves, etc.)
+ * @param Function error Error callback, takes a string as a parameter which contains an error message
+ */
+window.GameCenter.quitMatch = function (matchId, success, error) {
+	cordova.exec(success, error, "GameCenterPlugin", "quitMatch", [matchId]);	// success callback, error callback, class, method, args
 };
