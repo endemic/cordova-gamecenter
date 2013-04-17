@@ -17,7 +17,7 @@ window.GameCenter.GKTurnBasedMatchStatus = {
 	'1': 'GKTurnBasedMatchStatusOpen',
 	'2': 'GKTurnBasedMatchStatusEnded',
 	'3': 'GKTurnBasedMatchStatusMatching'
-}
+};
 
 /**
  * @description Presents a login modal
@@ -51,13 +51,16 @@ window.GameCenter.showLeaderboard = function (category, time, success, error) {
 };
 
 /**
- * @description Retrieve all high scores in a particular category
- * @param String category
+ * @description Programatically retrieve all high scores in a particular category
+ * @param String category Leaderboard ID set up in iTunes Connect
+ * @param String friends Allowed values: "global" or "friends" to show scores from friends only
+ * @param String time Allowed values: "day" "week" or "all"
+ * @param String range Number of returned results, between 1 and 100. Default is 25.
  * @param Function success Success callback, takes a "score" object as a parameter which contains "score" and "category" properties
  * @param Function error Error callback, takes a string as a parameter which contains an error message
  */
-window.GameCenter.retrieveScores = function (category, success, error) {
-    cordova.exec(success, error, "GameCenterPlugin", "retrieveScores", [category]);	// success callback, error callback, class, method, args
+window.GameCenter.retrieveScores = function (category, friends, time, range, success, error) {
+    cordova.exec(success, error, "GameCenterPlugin", "retrieveScores", [category, friends, time, range]);	// success callback, error callback, class, method, args
 };
 
 /**
@@ -130,15 +133,28 @@ window.GameCenter.loadMatch = function (matchId, success, error) {
  * @param Function error Error callback, takes a string as a parameter which contains an error message
  */
 window.GameCenter.advanceTurn = function (data, success, error) {
+	if (typeof data === "object") {
+		data = JSON.stringify(data);
+	}
 	cordova.exec(success, error, "GameCenterPlugin", "advanceTurn", [data]);	// success callback, error callback, class, method, args
 };
 
 /**
- * @description Load the stored data for a match with a specific match ID
+ * @description Quit an in-progress match
  * @param String GameCenter match ID
  * @param Function success Success callback, takes a "data" object as a parameter which contains match data (played moves, etc.)
  * @param Function error Error callback, takes a string as a parameter which contains an error message
  */
 window.GameCenter.quitMatch = function (matchId, success, error) {
 	cordova.exec(success, error, "GameCenterPlugin", "quitMatch", [matchId]);	// success callback, error callback, class, method, args
+};
+
+/**
+ * @description Remove a finished match. Will return an error if player is current participant
+ * @param String GameCenter match ID
+ * @param Function success Success callback
+ * @param Function error Error callback, takes a string as a parameter which contains an error message
+ */
+window.GameCenter.removeMatch = function (matchId, success, error) {
+	cordova.exec(success, error, "GameCenterPlugin", "removeMatch", [matchId]);	// success callback, error callback, class, method, args
 };

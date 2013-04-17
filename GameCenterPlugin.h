@@ -34,12 +34,14 @@
 - (void)retrieveAchievement:(CDVInvokedUrlCommand *)command;
 - (void)showAchievements:(CDVInvokedUrlCommand *)command;
 
-// Matchmaking
+// Turn-based matches
 - (void)requestMatch:(CDVInvokedUrlCommand *)command;
 - (void)loadMatches:(CDVInvokedUrlCommand *)command;
 - (void)loadMatch:(CDVInvokedUrlCommand *)command;
 - (void)advanceTurn:(CDVInvokedUrlCommand *)command;
 - (void)quitMatch:(CDVInvokedUrlCommand *)command;
 - (void)endMatch:(CDVInvokedUrlCommand *)command;
+- (void)removeMatch:(CDVInvokedUrlCommand *)command;
+- (BOOL)findMatchWithId:(NSString *)matchId;    // helper method
 
 @end

@@ -12,31 +12,6 @@
 
 @synthesize achievementsDictionary, currentTurnBasedMatch, currentMatches;
 
-/*
-- (void)echo:(CDVInvokedUrlCommand *)command
-{
-	CDVPluginResult *result = nil;
-	NSString *arg = [command.arguments objectAtIndex:0];
-
-	if (arg != nil && arg.length > 0)
-	{
-		result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:arg];
-	}
-	else
-	{
-		result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"No string passed."];
-	}
-
-	[self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-
-	// Example of calling an async callback
-	// [self writeJavascript:@"window.storekit.callback.apply(window.storekit, ['arg1', 'arg2'])"];
- 
- //            NSData *jsonData = [NSJSONSerialization dataWithJSONObject:results options:NSJSONWritingPrettyPrinted error:nil];
- //            NSString *json = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-}
- */
-
 #pragma mark -
 #pragma mark Game Center methods
 
@@ -231,7 +206,6 @@
             leaderboardRequest.range = NSMakeRange(1, range);
         }
         
-        // Make the request
         [leaderboardRequest loadScoresWithCompletionHandler:^(NSArray *scores, NSError *error) {
             CDVPluginResult *result = nil;
             
@@ -241,7 +215,6 @@
             }
             else
             {
-                // Return scores
                 result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:scores];
             }
             
@@ -356,7 +329,7 @@
 }
 
 #pragma mark -
-#pragma mark Matchmaking
+#pragma mark Turn-based Matchmaking
 
 /**
  * Request a Game Center match
@@ -528,29 +501,15 @@
 - (void)loadMatch:(CDVInvokedUrlCommand *)command
 {
     NSString *matchId = @"";
-    CDVPluginResult *result = nil;
-    BOOL foundMatch = NO;
-    
+
     if (command.arguments.count > 0)
     {
         matchId = [command.arguments objectAtIndex:0];
     }
     
-    // Loop through local store of match objects to find the desired one
-    for (GKTurnBasedMatch *match in self.currentMatches)
+    if ([self findMatchWithId:matchId] == NO)
     {
-        if ([match.matchID isEqualToString:matchId])
-        {
-            self.currentTurnBasedMatch = match;
-            foundMatch = YES;
-            break;
-        }
-    }
-    
-    // Fail out if the match ID isn't in the list of available matches
-    if (foundMatch == NO)
-    {
-        result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Couldn't find match."];
+        CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Match not found."];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
@@ -612,29 +571,15 @@
 - (void)quitMatch:(CDVInvokedUrlCommand *)command
 {
     NSString *matchId = @"";
-    CDVPluginResult *result = nil;
-    BOOL foundMatch = NO;
     
     if (command.arguments.count > 0)
     {
         matchId = [command.arguments objectAtIndex:0];
     }
     
-    // Loop through local store of match objects to find the desired one
-    for (GKTurnBasedMatch *match in self.currentMatches)
+    if ([self findMatchWithId:matchId] == NO)
     {
-        if ([match.matchID isEqualToString:matchId])
-        {
-            self.currentTurnBasedMatch = match;
-            foundMatch = YES;
-            break;
-        }
-    }
-    
-    // Fail out if the match ID isn't in the list of available matches
-    if (foundMatch == NO)
-    {
-        result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Couldn't find match."];
+        CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Match not found."];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
@@ -686,7 +631,6 @@
 - (void)endMatch:(CDVInvokedUrlCommand *)command
 {
     NSString *argument = [NSString stringWithFormat:@"%@", [command.arguments objectAtIndex:0]];
-    NSLog(@"Turn data: %@", argument);
     
     // Convert data arg to NSData
     NSData *data = [argument dataUsingEncoding:NSUTF8StringEncoding];
@@ -706,6 +650,63 @@
         // Send results
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
     }];
+}
+
+/**
+ * Remove a finished game from Game Center
+ */
+- (void)removeMatch:(CDVInvokedUrlCommand *)command
+{
+    NSString *matchId = @"";
+
+    if (command.arguments.count > 0)
+    {
+        matchId = [command.arguments objectAtIndex:0];
+    }
+    
+    if ([self findMatchWithId:matchId] == NO)
+    {
+        CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Match not found."];
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        return;
+    }
+    
+    [self.currentTurnBasedMatch removeWithCompletionHandler:^(NSError *error) {
+        CDVPluginResult *result = nil;
+        
+        if (error != nil)
+        {
+            result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
+        }
+        else
+        {
+            result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+        }
+        
+        // Send results
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+    }];
+}
+
+/**
+ * Helper method which sets 'currentTurnBasedMatch' to the match with the provided matchId
+ */
+- (BOOL)findMatchWithId:(NSString *)matchId
+{
+    BOOL foundMatch = NO;
+    
+    // Loop through local store of match objects to find the desired one
+    for (GKTurnBasedMatch *match in self.currentMatches)
+    {
+        if ([match.matchID isEqualToString:matchId])
+        {
+            self.currentTurnBasedMatch = match;
+            foundMatch = YES;
+            break;
+        }
+    }
+    
+    return foundMatch;
 }
 
 #pragma mark -
