@@ -74,6 +74,8 @@ window.GameCenter.showAchievements = function (success, error) {
 
 /**
  * @description Request a turn based match
+ * @param Number minPlayers Minimum # of players for match
+ * @param Number maxPlayers Maximum # of players for match
  * @param Function success Success callback
  * @param Function error Error callback, takes a string as a parameter which contains an error message
  */
@@ -94,8 +96,8 @@ window.GameCenter.foundMatch = function (matchId) {
  * @description Called when there was some sort of error setting up a Game Center match (network timeout, etc.)
  * Overwrite this method with your own code.
  */
-window.GameCenter.matchError = function (message) {
-	console.log("There was an error creating the match: " + message);
+window.GameCenter.matchError = function (error) {
+	console.log("There was an error creating the match: " + error);
 	/* Your own code here */
 };
 
@@ -106,6 +108,14 @@ window.GameCenter.matchCancelled = function () {
 	/* Your own code here */
 	console.log("The match was cancelled.");
 };
+
+/**
+ * @description Called when another player quits a game
+ */
+window.GameCenter.playerQuit = function (matchId) {
+	/* Your own code here */
+	console.log("Another player quit game #" + matchId);
+}
 
 /**
  * @description Load current matches for the logged in player

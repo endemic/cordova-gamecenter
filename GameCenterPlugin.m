@@ -380,7 +380,7 @@
     [self.viewController dismissViewControllerAnimated:YES completion:nil];
     
     // Execute a custom callback to let Javascript layer know a match was found; probably should update UI
-    [self writeJavascript:[NSString stringWithFormat:@"window.GameKit.foundMatch(%@)", match.matchID]];
+    [self writeJavascript:[NSString stringWithFormat:@"window.GameCenter.foundMatch(%@)", match.matchID]];
 }
 
 /**
@@ -718,7 +718,7 @@
     [self.viewController dismissViewControllerAnimated:YES completion:nil];
     
     // Execute a custom callback
-    [self writeJavascript:@"window.GameKit.matchCancelled()"];
+    [self writeJavascript:@"window.GameCenter.matchCancelled()"];
 }
 
 /* Fail */
@@ -727,13 +727,14 @@
     [self.viewController dismissViewControllerAnimated:YES completion:nil];
     
     // Execute a custom callback
-    [self writeJavascript:[NSString stringWithFormat:@"window.GameKit.matchError(%@)", error.localizedDescription]];
+    [self writeJavascript:[NSString stringWithFormat:@"window.GameCenter.matchError(%@)", error.localizedDescription]];
 }
 
 /* Quit */
 - (void)turnBasedMatchmakerViewController:(GKTurnBasedMatchmakerViewController *)viewController playerQuitForMatch:(GKTurnBasedMatch *)match
 {
-    // TODO: Update the particular match to say that the player quit
+    // Execute a custom callback
+    [self writeJavascript:[NSString stringWithFormat:@"window.GameCenter.playerQuit(%@)", match.matchID]];
 }
 
 #pragma mark -
