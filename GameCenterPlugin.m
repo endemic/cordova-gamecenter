@@ -29,7 +29,7 @@
         }
         else if (localPlayer.isAuthenticated)
         {
-            NSDictionary *playerInfo = [NSDictionary dictionaryWithObjectsAndKeys:localPlayer.playerID, @"playerID",
+            NSDictionary *playerInfo = [NSDictionary dictionaryWithObjectsAndKeys:localPlayer.playerID, @"playerId",
                                                                                localPlayer.alias, @"alias",
                                                                                [NSNumber numberWithBool:localPlayer.isAuthenticated], @"authenticated", nil];
             
@@ -371,10 +371,9 @@
  */
 - (void)turnBasedMatchmakerViewController:(GKTurnBasedMatchmakerViewController *)viewController didFindMatch:(GKTurnBasedMatch *)match
 {
-    NSLog(@"Found a match: %@", match);
-    
     // Store this match
     self.currentTurnBasedMatch = match;
+    [self.currentMatches addObject:match];
     
     // Dismiss the native UI
     [self.viewController dismissViewControllerAnimated:YES completion:nil];
@@ -384,7 +383,7 @@
 }
 
 /**
- * Programmatically retrieve the list of matches the local player is participating in
+ * Programmatically retrieve the list of matches & match data the local player is participating in
  */
 - (void)loadMatches:(CDVInvokedUrlCommand *)command
 {
@@ -393,12 +392,9 @@
         
         if (matches)
         {
-            // Store list of current matches;
-            // can't send Obj-C objects back to the Javascript layer,
-            // so will need to iterate/find the native object based on matchID
-            self.currentMatches = matches;
+            self.currentMatches = [NSMutableArray arrayWithArray:matches];
             
-            NSMutableArray *json = [NSMutableArray array];
+            NSMutableDictionary *json = [NSMutableDictionary dictionary];
             NSMutableArray *playerIds = [NSMutableArray array];
             
             for (GKTurnBasedMatch *match in matches)
@@ -409,8 +405,8 @@
                 for (GKTurnBasedParticipant *participant in match.participants)
                 {
                     NSMutableDictionary *p = [NSMutableDictionary dictionaryWithObjectsAndKeys:participant.playerID, @"playerId",
-                                       [NSNumber numberWithInt:participant.status], @"status",
-                                       participant.timeoutDate, @"timeoutDate", nil];
+                                                                                               [NSNumber numberWithInt:participant.status], @"status",
+                                                                                               participant.timeoutDate, @"timeoutDate", nil];
                     
                     [participants addObject:p];
                     
@@ -423,17 +419,21 @@
                 
                 // Get current participant
                 NSMutableDictionary *currentParticipant = [NSMutableDictionary dictionaryWithObjectsAndKeys:match.currentParticipant.playerID, @"playerId",
-                                   [NSNumber numberWithInt:match.currentParticipant.status], @"status",
-                                   match.currentParticipant.timeoutDate, @"timeoutDate", nil];
+                                                                                                           [NSNumber numberWithInt:match.currentParticipant.status], @"status",
+                                                                                                           match.currentParticipant.timeoutDate, @"timeoutDate", nil];
                 
                 // Create a dictionary w/ relevant data
                 NSMutableDictionary *m = [NSMutableDictionary dictionaryWithObjectsAndKeys:match.matchID, @"matchId",
-                                   [NSNumber numberWithInt:match.status], @"status",
-                                   match.message, @"message",
-                                   participants, @"participants",
-                                   currentParticipant, @"currentParticipant", nil];
+                                                                                           [NSNumber numberWithInt:match.status], @"status",
+                                                                                           participants, @"participants",
+                                                                                           currentParticipant, @"currentParticipant", nil];
                 
-                [json addObject:m];
+                if (match.message != nil)
+                {
+                    [m setObject:match.message forKey:@"message"];
+                }
+
+                [json setObject:m forKey:match.matchID];
             }
             
             // Get player aliases
@@ -450,8 +450,10 @@
                     }
                     
                     // Loop through the results array and add player aliases to match objects
-                    for (NSMutableDictionary *match in json)
+                    for (NSString *key in json)
                     {
+                        NSMutableDictionary *match = [json objectForKey:key];
+                        
                         // Set the alias for the current participant
                         NSMutableDictionary *currentParticipant = [match objectForKey:@"currentParticipant"];
                         NSString *playerId = [currentParticipant objectForKey:@"playerId"];
@@ -472,7 +474,7 @@
                         }
                     }
                     
-                    result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:json];
+                    result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:json];
                 }
                 else if (error != nil)
                 {
@@ -485,11 +487,6 @@
         else if (error != nil)
         {
             result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
-            [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        }
-        else
-        {
-            result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR];
             [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         }
     }];
@@ -533,11 +530,17 @@
  */
 - (void)advanceTurn:(CDVInvokedUrlCommand *)command
 {
-    NSString *argument = [NSString stringWithFormat:@"%@", [command.arguments objectAtIndex:0]];
-    NSLog(@"Turn data: %@", argument);
+    NSString *data = [NSString stringWithFormat:@"%@", [command.arguments objectAtIndex:0]];
+    BOOL skipNextPlayer = NO;
     
-    // Convert data arg to NSData
-    NSData *data = [argument dataUsingEncoding:NSUTF8StringEncoding];
+    if ([command.arguments count] > 1)
+    {
+        skipNextPlayer = (BOOL)[command.arguments objectAtIndex:1];
+    }
+    
+    NSLog(@"Turn data: %@", data);
+    
+    // Determine player order
     NSMutableArray *sortedPlayerOrder = [NSMutableArray arrayWithArray:self.currentTurnBasedMatch.participants];
     
     // Remove the first player and add to the end of the array
@@ -545,10 +548,17 @@
     [sortedPlayerOrder removeObjectAtIndex:0];
     [sortedPlayerOrder addObject:p];
     
-    // TODO: allow JS to pass a message indicating current game state
-    self.currentTurnBasedMatch.message = @"Hello!";
+    if (skipNextPlayer)
+    {
+        [sortedPlayerOrder removeObjectAtIndex:0];
+        [sortedPlayerOrder addObject:p];
+    }
     
-    [self.currentTurnBasedMatch endTurnWithNextParticipants:sortedPlayerOrder turnTimeout:GKTurnTimeoutDefault matchData:data completionHandler:^(NSError *error) {
+    // TODO: allow JS to pass a message indicating current game state
+//    self.currentTurnBasedMatch.message = @"Hello!";
+    
+    // Convert data arg to NSData
+    [self.currentTurnBasedMatch endTurnWithNextParticipants:sortedPlayerOrder turnTimeout:GKTurnTimeoutDefault matchData:[data dataUsingEncoding:NSUTF8StringEncoding] completionHandler:^(NSError *error) {
         CDVPluginResult *result = nil;
         
         if (error != nil)
@@ -630,12 +640,10 @@
  */
 - (void)endMatch:(CDVInvokedUrlCommand *)command
 {
-    NSString *argument = [NSString stringWithFormat:@"%@", [command.arguments objectAtIndex:0]];
+    NSString *data = [NSString stringWithFormat:@"%@", [command.arguments objectAtIndex:0]];
     
     // Convert data arg to NSData
-    NSData *data = [argument dataUsingEncoding:NSUTF8StringEncoding];
-    
-    [self.currentTurnBasedMatch endMatchInTurnWithMatchData:data completionHandler:^(NSError *error) {
+    [self.currentTurnBasedMatch endMatchInTurnWithMatchData:[data dataUsingEncoding:NSUTF8StringEncoding] completionHandler:^(NSError *error) {
         CDVPluginResult *result = nil;
         
         if (error != nil)

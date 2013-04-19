@@ -12,12 +12,27 @@
 window.GameCenter = {};
 
 /* Some GameCenter enums */
-window.GameCenter.GKTurnBasedMatchStatus = {
-	'0': 'GKTurnBasedMatchStatusUnknown',
-	'1': 'GKTurnBasedMatchStatusOpen',
-	'2': 'GKTurnBasedMatchStatusEnded',
-	'3': 'GKTurnBasedMatchStatusMatching'
-};
+window.GameCenter.GKTurnBasedMatchStatus = [
+	'GKTurnBasedMatchStatusUnknown',
+	'GKTurnBasedMatchStatusOpen',
+	'GKTurnBasedMatchStatusEnded',
+	'GKTurnBasedMatchStatusMatching'
+];
+
+window.GameCenter.GKTurnBasedParticipantStatus = [
+	'GKTurnBasedParticipantStatusUnknown',
+	'GKTurnBasedParticipantStatusInvited',
+	'GKTurnBasedParticipantStatusDeclined',
+	'GKTurnBasedParticipantStatusMatching',
+	'GKTurnBasedParticipantStatusActive',
+	'GKTurnBasedParticipantStatusDone'
+];
+
+/* A local cache of match data */
+window.GameCenter.matches = {};
+
+/* Whether or not the previous request was successful; helpful to know whether to make a request again. */
+window.GameCenter.requestError = false;
 
 /**
  * @description Presents a login modal
@@ -97,8 +112,8 @@ window.GameCenter.foundMatch = function (matchId) {
  * Overwrite this method with your own code.
  */
 window.GameCenter.matchError = function (error) {
-	console.log("There was an error creating the match: " + error);
 	/* Your own code here */
+	console.log("There was an error creating the match: " + error);
 };
 
 /**
@@ -115,7 +130,7 @@ window.GameCenter.matchCancelled = function () {
 window.GameCenter.playerQuit = function (matchId) {
 	/* Your own code here */
 	console.log("Another player quit game #" + matchId);
-}
+};
 
 /**
  * @description Load current matches for the logged in player
@@ -147,6 +162,19 @@ window.GameCenter.advanceTurn = function (data, success, error) {
 		data = JSON.stringify(data);
 	}
 	cordova.exec(success, error, "GameCenterPlugin", "advanceTurn", [data]);	// success callback, error callback, class, method, args
+};
+
+/**
+ * @description End a game when a player has won or lost
+ * @param String Arbitrary data that indicates the ending state of the match
+ * @param Function success Success callback
+ * @param Function error Error callback, takes a string as a parameter which contains an error message
+ */
+window.GameCenter.endMatch = function (data, success, error) {
+	if (typeof data === "object") {
+		data = JSON.stringify(data);
+	}
+	cordova.exec(success, error, "GameCenterPlugin", "endMatch", [data]);	// success callback, error callback, class, method, args
 };
 
 /**

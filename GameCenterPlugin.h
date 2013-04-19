@@ -13,12 +13,12 @@
     // Store saved Game Center achievement progress
     NSMutableDictionary *achievementsDictionary;
     GKTurnBasedMatch *currentTurnBasedMatch;
-    NSArray *currentMatches;
+    NSMutableArray *currentMatches;
 }
 
 @property (nonatomic, readwrite, retain) NSMutableDictionary *achievementsDictionary;
 @property (nonatomic, readwrite, retain) GKTurnBasedMatch *currentTurnBasedMatch;
-@property (nonatomic, readwrite, retain) NSArray *currentMatches;
+@property (nonatomic, readwrite, retain) NSMutableArray *currentMatches;
 
 // Game Center methods
 - (void)authenticateLocalPlayer;
