@@ -12,16 +12,14 @@
 {
     // Store saved Game Center achievement progress
     NSMutableDictionary *achievementsDictionary;
-    GKTurnBasedMatch *currentTurnBasedMatch;
     NSMutableArray *currentMatches;
 }
 
 @property (nonatomic, readwrite, retain) NSMutableDictionary *achievementsDictionary;
-@property (nonatomic, readwrite, retain) GKTurnBasedMatch *currentTurnBasedMatch;
 @property (nonatomic, readwrite, retain) NSMutableArray *currentMatches;
 
 // Game Center methods
-- (void)authenticateLocalPlayer;
+- (void)authenticateLocalPlayer:(CDVInvokedUrlCommand *)command;
 
 // Leaderboards
 - (void)reportScore:(CDVInvokedUrlCommand *)command;
@@ -42,6 +40,6 @@
 - (void)quitMatch:(CDVInvokedUrlCommand *)command;
 - (void)endMatch:(CDVInvokedUrlCommand *)command;
 - (void)removeMatch:(CDVInvokedUrlCommand *)command;
-- (BOOL)findMatchWithId:(NSString *)matchId;    // helper method
+- (GKTurnBasedMatch *)findMatchWithId:(NSString *)matchId;    // helper method
 
 @end

@@ -10,7 +10,7 @@
 
 @implementation GameCenterPlugin
 
-@synthesize achievementsDictionary, currentTurnBasedMatch, currentMatches;
+@synthesize achievementsDictionary, currentMatches;
 
 #pragma mark -
 #pragma mark Game Center methods
@@ -367,22 +367,6 @@
 }
 
 /**
- * Called after user successfully finds a match, or selects a game in progress
- */
-- (void)turnBasedMatchmakerViewController:(GKTurnBasedMatchmakerViewController *)viewController didFindMatch:(GKTurnBasedMatch *)match
-{
-    // Store this match
-    self.currentTurnBasedMatch = match;
-    [self.currentMatches addObject:match];
-    
-    // Dismiss the native UI
-    [self.viewController dismissViewControllerAnimated:YES completion:nil];
-    
-    // Execute a custom callback to let Javascript layer know a match was found; probably should update UI
-    [self writeJavascript:[NSString stringWithFormat:@"window.GameCenter.foundMatch(%@)", match.matchID]];
-}
-
-/**
  * Programmatically retrieve the list of matches & match data the local player is participating in
  */
 - (void)loadMatches:(CDVInvokedUrlCommand *)command
@@ -396,6 +380,8 @@
             
             NSMutableDictionary *json = [NSMutableDictionary dictionary];
             NSMutableArray *playerIds = [NSMutableArray array];
+            NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+            [dateFormatter setDateFormat:@"MM-dd-yyyy"];
             
             for (GKTurnBasedMatch *match in matches)
             {
@@ -406,7 +392,7 @@
                 {
                     NSMutableDictionary *p = [NSMutableDictionary dictionaryWithObjectsAndKeys:participant.playerID, @"playerId",
                                                                                                [NSNumber numberWithInt:participant.status], @"status",
-                                                                                               participant.timeoutDate, @"timeoutDate", nil];
+                                                                                               [dateFormatter stringFromDate:participant.timeoutDate], @"timeoutDate", nil];
                     
                     [participants addObject:p];
                     
@@ -489,6 +475,12 @@
             result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
             [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         }
+        else
+        {
+            // Send back empty dictionary
+            result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[NSDictionary dictionary]];
+            [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        }
     }];
 }
 
@@ -498,24 +490,25 @@
 - (void)loadMatch:(CDVInvokedUrlCommand *)command
 {
     NSString *matchId = @"";
-
+    GKTurnBasedMatch *match;
+    
     if (command.arguments.count > 0)
     {
         matchId = [command.arguments objectAtIndex:0];
     }
     
-    if ([self findMatchWithId:matchId] == NO)
+    match = [self findMatchWithId:matchId];
+    
+    if (!match)
     {
         CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Match not found."];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
     
-    [self.currentTurnBasedMatch loadMatchDataWithCompletionHandler:^(NSData *matchData, NSError *error) {
+    [match loadMatchDataWithCompletionHandler:^(NSData *matchData, NSError *error) {
         CDVPluginResult *result = nil;
         
-//        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:matchData options:NSJSONWritingPrettyPrinted error:nil];
-
         // Decode the match data here
         NSString *json = [[NSString alloc] initWithData:matchData encoding:NSUTF8StringEncoding];
         
@@ -530,35 +523,54 @@
  */
 - (void)advanceTurn:(CDVInvokedUrlCommand *)command
 {
-    NSString *data = [NSString stringWithFormat:@"%@", [command.arguments objectAtIndex:0]];
+    NSString *matchId = @"";
+    NSString *data = @"";
+    GKTurnBasedMatch *match;
     BOOL skipNextPlayer = NO;
+    
+    if (command.arguments.count > 0)
+    {
+        matchId = [command.arguments objectAtIndex:0];
+    }
     
     if ([command.arguments count] > 1)
     {
-        skipNextPlayer = (BOOL)[command.arguments objectAtIndex:1];
+        data = [NSString stringWithFormat:@"%@", [command.arguments objectAtIndex:1]];
     }
     
-    NSLog(@"Turn data: %@", data);
+    if ([command.arguments count] > 2)
+    {
+        skipNextPlayer = (BOOL)[command.arguments objectAtIndex:2];
+    }
+    
+    match = [self findMatchWithId:matchId];
+    
+    if (!match)
+    {
+        CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Match not found."];
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        return;
+    }
     
     // Determine player order
-    NSMutableArray *sortedPlayerOrder = [NSMutableArray arrayWithArray:self.currentTurnBasedMatch.participants];
+    NSMutableArray *sortedPlayerOrder = [NSMutableArray arrayWithArray:match.participants];
     
     // Remove the first player and add to the end of the array
     GKTurnBasedParticipant *p = [sortedPlayerOrder objectAtIndex:0];
-    [sortedPlayerOrder removeObjectAtIndex:0];
+    [sortedPlayerOrder removeObject:p];
     [sortedPlayerOrder addObject:p];
     
     if (skipNextPlayer)
     {
-        [sortedPlayerOrder removeObjectAtIndex:0];
+        p = [sortedPlayerOrder objectAtIndex:0];
+        [sortedPlayerOrder removeObject:p];
         [sortedPlayerOrder addObject:p];
     }
-    
-    // TODO: allow JS to pass a message indicating current game state
-//    self.currentTurnBasedMatch.message = @"Hello!";
+
+    //match.message = @"Hello!";
     
     // Convert data arg to NSData
-    [self.currentTurnBasedMatch endTurnWithNextParticipants:sortedPlayerOrder turnTimeout:GKTurnTimeoutDefault matchData:[data dataUsingEncoding:NSUTF8StringEncoding] completionHandler:^(NSError *error) {
+    [match endTurnWithNextParticipants:sortedPlayerOrder turnTimeout:GKTurnTimeoutDefault matchData:[data dataUsingEncoding:NSUTF8StringEncoding] completionHandler:^(NSError *error) {
         CDVPluginResult *result = nil;
         
         if (error != nil)
@@ -576,18 +588,21 @@
 }
 
 /**
- * When a player wants to resign from a particular match
+ * When a player wants to resign from a particular match. Method called depends on whether player is currently the active player.
  */
 - (void)quitMatch:(CDVInvokedUrlCommand *)command
 {
     NSString *matchId = @"";
+    GKTurnBasedMatch *match;
     
     if (command.arguments.count > 0)
     {
         matchId = [command.arguments objectAtIndex:0];
     }
     
-    if ([self findMatchWithId:matchId] == NO)
+    match = [self findMatchWithId:matchId];
+    
+    if (!match)
     {
         CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Match not found."];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
@@ -595,13 +610,13 @@
     }
     
     // Determine if you are the current player or not
-    if ([self.currentTurnBasedMatch.currentParticipant.playerID isEqualToString:[GKLocalPlayer localPlayer].playerID]) {
-        NSMutableArray *sortedPlayerOrder = [NSMutableArray arrayWithArray:self.currentTurnBasedMatch.participants];
+    if ([match.currentParticipant.playerID isEqualToString:[GKLocalPlayer localPlayer].playerID]) {
+        NSMutableArray *sortedPlayerOrder = [NSMutableArray arrayWithArray:match.participants];
         
         // Remove the first player
         [sortedPlayerOrder removeObjectAtIndex:0];
         
-        [self.currentTurnBasedMatch participantQuitInTurnWithOutcome:GKTurnBasedMatchOutcomeQuit nextParticipants:sortedPlayerOrder turnTimeout:604800 matchData:self.currentTurnBasedMatch.matchData completionHandler:^(NSError *error) {
+        [match participantQuitInTurnWithOutcome:GKTurnBasedMatchOutcomeQuit nextParticipants:sortedPlayerOrder turnTimeout:604800 matchData:match.matchData completionHandler:^(NSError *error) {
             CDVPluginResult *result = nil;
             
             if (error != nil)
@@ -617,7 +632,7 @@
             [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         }];
     } else {
-        [self.currentTurnBasedMatch participantQuitOutOfTurnWithOutcome:GKTurnBasedMatchOutcomeQuit withCompletionHandler:^(NSError *error) {
+        [match participantQuitOutOfTurnWithOutcome:GKTurnBasedMatchOutcomeQuit withCompletionHandler:^(NSError *error) {
             CDVPluginResult *result = nil;
             
             if (error != nil)
@@ -640,10 +655,31 @@
  */
 - (void)endMatch:(CDVInvokedUrlCommand *)command
 {
-    NSString *data = [NSString stringWithFormat:@"%@", [command.arguments objectAtIndex:0]];
+    NSString *matchId = @"";
+    NSString *data = @"";
+    GKTurnBasedMatch *match;
+    
+    if (command.arguments.count > 0)
+    {
+        matchId = [command.arguments objectAtIndex:0];
+    }
+    
+    if (command.arguments.count > 1)
+    {
+        data = [NSString stringWithFormat:@"%@", [command.arguments objectAtIndex:1]];
+    }
+    
+    match = [self findMatchWithId:matchId];
+    
+    if (!match)
+    {
+        CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Match not found."];
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        return;
+    }
     
     // Convert data arg to NSData
-    [self.currentTurnBasedMatch endMatchInTurnWithMatchData:[data dataUsingEncoding:NSUTF8StringEncoding] completionHandler:^(NSError *error) {
+    [match endMatchInTurnWithMatchData:[data dataUsingEncoding:NSUTF8StringEncoding] completionHandler:^(NSError *error) {
         CDVPluginResult *result = nil;
         
         if (error != nil)
@@ -666,20 +702,23 @@
 - (void)removeMatch:(CDVInvokedUrlCommand *)command
 {
     NSString *matchId = @"";
+    GKTurnBasedMatch *match;
 
     if (command.arguments.count > 0)
     {
         matchId = [command.arguments objectAtIndex:0];
     }
     
-    if ([self findMatchWithId:matchId] == NO)
+    match = [self findMatchWithId:matchId];
+    
+    if (!match)
     {
         CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Match not found."];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
     
-    [self.currentTurnBasedMatch removeWithCompletionHandler:^(NSError *error) {
+    [match removeWithCompletionHandler:^(NSError *error) {
         CDVPluginResult *result = nil;
         
         if (error != nil)
@@ -699,17 +738,16 @@
 /**
  * Helper method which sets 'currentTurnBasedMatch' to the match with the provided matchId
  */
-- (BOOL)findMatchWithId:(NSString *)matchId
+- (GKTurnBasedMatch *)findMatchWithId:(NSString *)matchId
 {
-    BOOL foundMatch = NO;
+    GKTurnBasedMatch *foundMatch = nil;
     
     // Loop through local store of match objects to find the desired one
     for (GKTurnBasedMatch *match in self.currentMatches)
     {
         if ([match.matchID isEqualToString:matchId])
         {
-            self.currentTurnBasedMatch = match;
-            foundMatch = YES;
+            foundMatch = match;
             break;
         }
     }
@@ -719,6 +757,99 @@
 
 #pragma mark -
 #pragma mark Matchmaking delegate methods
+
+/* Found match */
+- (void)turnBasedMatchmakerViewController:(GKTurnBasedMatchmakerViewController *)viewController didFindMatch:(GKTurnBasedMatch *)match
+{
+    // Store this match
+    [self.currentMatches addObject:match];
+    
+    // Dismiss the native UI
+    [self.viewController dismissViewControllerAnimated:YES completion:nil];
+    
+    // Execute a custom callback to let Javascript layer know a match was found;
+    // Should pass back an object that represents the new match
+    NSMutableArray *playerIds = [NSMutableArray array];
+    NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+    [dateFormatter setDateFormat:@"MM-dd-yyyy"];
+    
+    NSMutableArray *participants = [NSMutableArray array];
+    
+    // Get participants
+    for (GKTurnBasedParticipant *participant in match.participants)
+    {
+        NSMutableDictionary *p = [NSMutableDictionary dictionaryWithObjectsAndKeys:participant.playerID, @"playerId",
+                                  [NSNumber numberWithInt:participant.status], @"status",
+                                  [dateFormatter stringFromDate:participant.timeoutDate], @"timeoutDate", nil];
+        
+        [participants addObject:p];
+        
+        // Add participant to the "alias" lookup array
+        if (participant.playerID != nil && [playerIds indexOfObject:participant.playerID] == NSNotFound)
+        {
+            [playerIds addObject:participant.playerID];
+        }
+    }
+    
+    // Get current participant
+    NSMutableDictionary *currentParticipant = [NSMutableDictionary dictionaryWithObjectsAndKeys:match.currentParticipant.playerID, @"playerId",
+                                               [NSNumber numberWithInt:match.currentParticipant.status], @"status",
+                                               match.currentParticipant.timeoutDate, @"timeoutDate", nil];
+    
+    // Create a dictionary w/ relevant data
+    NSMutableDictionary *m = [NSMutableDictionary dictionaryWithObjectsAndKeys:match.matchID, @"matchId",
+                              [NSNumber numberWithInt:match.status], @"status",
+                              participants, @"participants",
+                              currentParticipant, @"currentParticipant", nil];
+    
+    if (match.message != nil)
+    {
+        [m setObject:match.message forKey:@"message"];
+    }
+    
+    // Get player aliases
+    [GKPlayer loadPlayersForIdentifiers:playerIds withCompletionHandler:^(NSArray *players, NSError *error) {
+        NSMutableDictionary *playerAliases = [NSMutableDictionary dictionary];
+        
+        if (players)
+        {
+            // Create a dictionary w/ ID of player as key, alias as value
+            for (GKPlayer *player in players)
+            {
+                [playerAliases setObject:player.alias forKey:player.playerID];
+            }
+            
+            // Set the alias for the current participant
+            NSMutableDictionary *currentParticipant = [m objectForKey:@"currentParticipant"];
+            NSString *playerId = [currentParticipant objectForKey:@"playerId"];
+            if (playerId != nil)
+            {
+                [currentParticipant setObject:[playerAliases objectForKey:playerId] forKey:@"alias"];
+            }
+            
+            // Set the alias for all participants
+            NSMutableArray *participants = [m objectForKey:@"participants"];
+            for (NSMutableDictionary *participant in participants)
+            {
+                NSString *playerId = [participant objectForKey:@"playerId"];
+                if (playerId != nil)
+                {
+                    [participant setObject:[playerAliases objectForKey:playerId] forKey:@"alias"];
+                }
+            }
+            
+            NSData *jsonData = [NSJSONSerialization dataWithJSONObject:m options:0 error:nil];
+            NSString *jsonString = [[[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding] autorelease];
+            
+            // Note that you'll have to make your "foundMatch" method parse the passed JSON string
+            [self writeJavascript:[NSString stringWithFormat:@"window.GameCenter.foundMatch('%@')", jsonString]];
+        }
+        else if (error != nil)
+        {
+            [self writeJavascript:[NSString stringWithFormat:@"window.GameCenter.foundMatch('%@')", error.localizedDescription]];
+        }
+    }];
+}
 
 /* Cancel */
 - (void)turnBasedMatchmakerViewControllerWasCancelled:(GKTurnBasedMatchmakerViewController *)viewController
@@ -741,6 +872,8 @@
 /* Quit */
 - (void)turnBasedMatchmakerViewController:(GKTurnBasedMatchmakerViewController *)viewController playerQuitForMatch:(GKTurnBasedMatch *)match
 {
+    NSLog(@"playerQuitForMatch");
+    
     // Execute a custom callback
     [self writeJavascript:[NSString stringWithFormat:@"window.GameCenter.playerQuit(%@)", match.matchID]];
 }
@@ -774,6 +907,7 @@
 // Another player updates match data - Foreground
 - (void)handleTurnEventForMatch:(GKTurnBasedMatch *)match didBecomeActive:(BOOL)didBecomeActive
 {
+    NSLog(@"handleTurnEventForMatch");
     /*
      When your delegate receives this message, the player has accepted a push notification for a match already in progress. 
      Your game should end whatever task it was performing and switch to the match information provided by the match object.
@@ -783,6 +917,7 @@
 // Match ended - Push
 - (void)handleMatchEnded:(GKTurnBasedMatch *)match
 {
+    NSLog(@"handleMatchEnded");
     /*
      When your delegate receives this message, it should display the match’s final results to the player and allow the 
      player the option of saving or removing the match data from Game Center.

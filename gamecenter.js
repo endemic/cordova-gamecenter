@@ -29,10 +29,7 @@ window.GameCenter.GKTurnBasedParticipantStatus = [
 ];
 
 /* A local cache of match data */
-window.GameCenter.matches = {};
-
-/* Whether or not the previous request was successful; helpful to know whether to make a request again. */
-window.GameCenter.requestError = false;
+window.GameCenter.matches = null;
 
 /**
  * @description Presents a login modal
@@ -102,9 +99,11 @@ window.GameCenter.requestMatch = function (minPlayers, maxPlayers, success, erro
  * @description Custom callback, executed when a user's match request goes through successfully
  * Probably should show player the gameplay UI/scene
  */
-window.GameCenter.foundMatch = function (matchId) {
-	console.log("Found match " + matchId);
-	/* Your own code here; call 'loadMatchWithId' to get game data, then transition to gameplay */
+window.GameCenter.foundMatch = function (stringifiedMatchObject) {
+	var match = JSON.parse(stringifiedMatchObject);
+
+	console.log("Found match " + match.matchId);
+	/* Your own code here; call 'loadMatch' to get game data, then transition to gameplay */
 };
 
 /**
@@ -133,7 +132,7 @@ window.GameCenter.playerQuit = function (matchId) {
 };
 
 /**
- * @description Load current matches for the logged in player
+ * @description Load current matches for the logged in player. This method needs to be called before you do any other manipulation with Game Center matches.
  * @param Function success Success callback, takes a "matches" array as a parameter which contains objects representing current matches
  * @param Function error Error callback, takes a string as a parameter which contains an error message
  */
@@ -153,28 +152,31 @@ window.GameCenter.loadMatch = function (matchId, success, error) {
 
 /**
  * @description Play a move in a specified match
+ * @param String GameCenter match ID
  * @param String Arbitrary data that indicates the state of the match
+ * @param String Whether or not to skip the next player's turn
  * @param Function success Success callback
  * @param Function error Error callback, takes a string as a parameter which contains an error message
  */
-window.GameCenter.advanceTurn = function (data, success, error) {
+window.GameCenter.advanceTurn = function (matchId, data, skipNextPlayer, success, error) {
 	if (typeof data === "object") {
 		data = JSON.stringify(data);
 	}
-	cordova.exec(success, error, "GameCenterPlugin", "advanceTurn", [data]);	// success callback, error callback, class, method, args
+	cordova.exec(success, error, "GameCenterPlugin", "advanceTurn", [matchId, data, skipNextPlayer]);	// success callback, error callback, class, method, args
 };
 
 /**
  * @description End a game when a player has won or lost
+ * @param String GameCenter match ID
  * @param String Arbitrary data that indicates the ending state of the match
  * @param Function success Success callback
  * @param Function error Error callback, takes a string as a parameter which contains an error message
  */
-window.GameCenter.endMatch = function (data, success, error) {
+window.GameCenter.endMatch = function (matchId, data, success, error) {
 	if (typeof data === "object") {
 		data = JSON.stringify(data);
 	}
-	cordova.exec(success, error, "GameCenterPlugin", "endMatch", [data]);	// success callback, error callback, class, method, args
+	cordova.exec(success, error, "GameCenterPlugin", "endMatch", [matchId, data]);	// success callback, error callback, class, method, args
 };
 
 /**
