@@ -15,6 +15,16 @@
 #pragma mark -
 #pragma mark Game Center methods
 
+/*
+- (void)pluginInitialize
+{
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(authenticationChanged)
+                                                 name:GKPlayerAuthenticationDidChangeNotificationName
+                                               object:nil];
+}
+*/
+
 - (void)authenticateLocalPlayer:(CDVInvokedUrlCommand *)command
 {
     GKLocalPlayer *localPlayer = [GKLocalPlayer localPlayer];
@@ -211,7 +221,7 @@
             
             if (error != nil)
             {
-                result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:[error localizedDescription]];
+                result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
             }
             else
             {
@@ -227,31 +237,64 @@
 #pragma mark -
 #pragma mark Achievements
 
-/* Temporarily store achievements in a local data structure */
-- (void)loadAchievements
+/* Load achievements and store in a local data structure */
+- (void)loadAchievements:(CDVInvokedUrlCommand *)command
 {
     // Load player achievements
     [GKAchievement loadAchievementsWithCompletionHandler:^(NSArray *achievements, NSError *error) {
+        CDVPluginResult *result = nil;
+        
         if (error != nil)
         {
-            // handle errors
+            result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
         }
         if (achievements != nil)
         {
+            NSMutableArray *json = [NSMutableArray array];
+            NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+            [dateFormatter setDateFormat:@"MM-dd-yyyy"];
+            
             // process array of achievements
-            for (GKAchievement* achievement in achievements)
+            for (GKAchievement *achievement in achievements)
             {
                 [achievementsDictionary setObject:achievement forKey:achievement.identifier];
+                
+                NSDictionary *a = [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithBool:achievement.completed], @"completed",
+                                                                             achievement.identifier, @"identifier",
+                                                                             [dateFormatter stringFromDate:achievement.lastReportedDate], @"lastReportedDate",
+                                                                             [NSNumber numberWithDouble:achievement.percentComplete], @"percentComplete",
+                                                                             [NSNumber numberWithBool:achievement.showsCompletionBanner], @"showsCompletionBanner",
+                                                                             nil];
+                
+                [json addObject:a];
             }
+            
+            result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:json];
         }
+        
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
     }];
 }
 
 /**
- * Get an achievement object in the locally stored dictionary
+ * Send a completion % for a specific achievement to Game Center
  */
-- (GKAchievement *)getAchievementForIdentifier:(NSString *)identifier
+- (void)reportAchievement:(CDVInvokedUrlCommand *)command
 {
+    NSString *identifier = @"";
+    float percent = 0.0;
+    
+    if (command.arguments.count > 0)
+    {
+        identifier = [command.arguments objectAtIndex:0];
+    }
+    
+    if (command.arguments.count > 1)
+    {
+        percent = [[command.arguments objectAtIndex:0] floatValue];
+    }
+    
+    // Instantiate GKAchievement object for an achievement (set up in iTunes Connect)
     GKAchievement *achievement = [achievementsDictionary objectForKey:identifier];
     
     if (achievement == nil)
@@ -260,47 +303,21 @@
         [achievementsDictionary setObject:achievement forKey:achievement.identifier];
     }
     
-    return achievement;
-}
-
-/**
- * Send a completion % for a specific achievement to Game Center
- */
-- (void)reportAchievementIdentifier:(NSString *)identifier percentComplete:(float)percent
-{
-    // Instantiate GKAchievement object for an achievement (set up in iTunes Connect)
-    GKAchievement *achievement = [self getAchievementForIdentifier:identifier];
-    
-    if (achievement)
-    {
-        achievement.percentComplete = percent;
-        [achievement reportAchievementWithCompletionHandler:^(NSError *error) {
-            if (error != nil)
-            {
-                NSLog(@"Error sending achievement!");
-            }
-        }];
-    }
-}
-
-/**
- * Send a completion % for a specific achievement to Game Center - increments an existing achievement object
- */
-- (void)reportAchievementIdentifier:(NSString *)identifier incrementPercentComplete:(float)percent
-{
-    // Instantiate GKAchievement object for an achievement (set up in iTunes Connect)
-    GKAchievement *achievement = [self getAchievementForIdentifier:identifier];
-    
-    if (achievement)
-    {
-        achievement.percentComplete += percent;
-        [achievement reportAchievementWithCompletionHandler:^(NSError *error) {
-             if (error != nil)
-             {
-                 NSLog(@"Error sending achievement!");
-             }
-         }];
-    }
+    achievement.percentComplete = percent;
+    [achievement reportAchievementWithCompletionHandler:^(NSError *error) {
+        CDVPluginResult *result = nil;
+        
+        if (error != nil)
+        {
+            result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
+        }
+        else
+        {
+            result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+        }
+        
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+    }];
 }
 
 /* Show the native achievement UI */

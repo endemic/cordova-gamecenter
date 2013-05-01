@@ -31,6 +31,9 @@ window.GameCenter.GKTurnBasedParticipantStatus = [
 /* A local cache of match data */
 window.GameCenter.matches = null;
 
+/* A local cache of achievement data */
+window.GameCenter.achievements = null;
+
 /**
  * @description Presents a login modal
  * @param Function success Success callback - passed an object which looks like: { authenticated: true, playerID: XXXXX, alias: "Public display name" }
@@ -73,6 +76,26 @@ window.GameCenter.showLeaderboard = function (category, time, success, error) {
  */
 window.GameCenter.retrieveScores = function (category, friends, time, range, success, error) {
     cordova.exec(success, error, "GameCenterPlugin", "retrieveScores", [category, friends, time, range]);	// success callback, error callback, class, method, args
+};
+
+/**
+ * @description Load all achievements set up for an app
+ * @param Function success Success callback, receives an array of achievement objects
+ * @param Function error Error callback, takes a string as a parameter which contains an error message
+ */
+window.GameCenter.loadAchievements = function (success, error) {
+    cordova.exec(success, error, "GameCenterPlugin", "loadAchievements", []);	// success callback, error callback, class, method, args
+};
+
+/**
+ * @description Report a completion % for an achievement
+ * @param String identifier Achievement ID
+ * @param Number percent The completion % of the achievement
+ * @param Function success Success callback
+ * @param Function error Error callback, takes a string as a parameter which contains an error message
+ */
+window.GameCenter.reportAchievement = function (identifier, percent, success, error) {
+    cordova.exec(success, error, "GameCenterPlugin", "reportAchievement", []);	// success callback, error callback, class, method, args
 };
 
 /**

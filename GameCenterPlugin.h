@@ -27,9 +27,8 @@
 - (void)retrieveScores:(CDVInvokedUrlCommand *)command;
 
 // Achievements
-- (GKAchievement *)getAchievementForIdentifier:(NSString *)identifier;  // helper method
+- (void)loadAchievements:(CDVInvokedUrlCommand *)command;
 - (void)reportAchievement:(CDVInvokedUrlCommand *)command;
-- (void)retrieveAchievement:(CDVInvokedUrlCommand *)command;
 - (void)showAchievements:(CDVInvokedUrlCommand *)command;
 
 // Turn-based matches
