@@ -5,13 +5,13 @@
 1. Copy __GameCenterPlugin.h__ and __GameCenterPlugin.m__ to your project's _Plugins_ directory.
 2. Copy __gamecenter.js__ to your project's _www_ directory.
 3. Edit your project's _config.xml_ file:
-	1. Add __&lt;plugin name="GameCenterPlugin" value="GameCenterPlugin" /&gt;__ to the __&lt;plugins&gt;__ node.
+  1. Add __&lt;plugin name="GameCenterPlugin" value="GameCenterPlugin" /&gt;__ to the __&lt;plugins&gt;__ node.
 	2. if your __access origin__ tag is not set to *, add *.apple.com to the origin string.
 4. Include a reference to __gamecenter.js__ in your index file (e.g. &lt;script src="js/gamecenter.js"&gt;&lt;/script&gt;).
 5. Set up GameCenter for your app in iTunes Connect. [more in the apple docs](http://developer.apple.com/library/mac/#documentation/LanguagesUtilities/Conceptual/iTunesConnect_Guide/15_GameCenter/GameCenter.html)
 
 
-__in cordova iOS projects [before 2.3.0](http://shazronatadobe.wordpress.com/tag/config-xml/):__
+__in cordova iOS projects [before 2.3.0](http://shazronatadobe.wordpress.com/tag/config-xml/):__<br>
 3. Edit your project's _Cordova.plist_ file:
 	1. Add __*.apple.com__ to the _ExternalHosts_ array.
 	2. Add __GameCenterPlugin__ to the _Plugins_ dictionary (for both key and value).
